@@ -1,0 +1,330 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": "Data Factory name",
+            "defaultValue": "cloud-dev-adf"
+        },
+        "ls_adls_accountKey": {
+            "type": "secureString",
+            "metadata": "Secure string for 'accountKey' of 'ls_adls'"
+        },
+        "ls_adls_properties_typeProperties_url": {
+            "type": "string",
+            "defaultValue": "https://cloudadls01.dfs.core.windows.net/"
+        }
+    },
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('factoryName'), '/ls_adls')]",
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "annotations": [],
+                "type": "AzureBlobFS",
+                "typeProperties": {
+                    "url": "[parameters('ls_adls_properties_typeProperties_url')]",
+                    "accountKey": {
+                        "type": "SecureString",
+                        "value": "[parameters('ls_adls_accountKey')]"
+                    }
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/ds_adls_input')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "ls_adls",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileName": "credit_monthly.csv",
+                        "fileSystem": "input"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": [
+                    {
+                        "name": "Credit_ID",
+                        "type": "String"
+                    },
+                    {
+                        "name": "Card_Type",
+                        "type": "String"
+                    },
+                    {
+                        "name": "Credit_Name",
+                        "type": "String"
+                    },
+                    {
+                        "name": "credit_Score",
+                        "type": "String"
+                    }
+                ]
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/ls_adls')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/ds_adls_master')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "ls_adls",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileSystem": "masterdata"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/ls_adls')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/ds_adls_visa')]",
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "ls_adls",
+                    "type": "LinkedServiceReference"
+                },
+                "annotations": [],
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileSystem": "visadata"
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                },
+                "schema": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/linkedServices/ls_adls')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/pipeline1')]",
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "activities": [
+                    {
+                        "name": "Data flow1",
+                        "type": "ExecuteDataFlow",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.12:00:00",
+                            "retry": 0,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "typeProperties": {
+                            "dataflow": {
+                                "referenceName": "dataflow1",
+                                "type": "DataFlowReference",
+                                "parameters": {},
+                                "datasetParameters": {
+                                    "source1": {},
+                                    "sinkmaster": {},
+                                    "sinkvisa": {}
+                                }
+                            },
+                            "staging": {},
+                            "compute": {
+                                "coreCount": 8,
+                                "computeType": "General"
+                            },
+                            "traceLevel": "Fine"
+                        }
+                    }
+                ],
+                "policy": {
+                    "elapsedTimeMetric": {}
+                },
+                "annotations": []
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/dataflows/dataflow1')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/dataflow1')]",
+            "type": "Microsoft.DataFactory/factories/dataflows",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "type": "MappingDataFlow",
+                "typeProperties": {
+                    "sources": [
+                        {
+                            "dataset": {
+                                "referenceName": "ds_adls_input",
+                                "type": "DatasetReference"
+                            },
+                            "name": "source1"
+                        }
+                    ],
+                    "sinks": [
+                        {
+                            "dataset": {
+                                "referenceName": "ds_adls_master",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkmaster"
+                        },
+                        {
+                            "dataset": {
+                                "referenceName": "ds_adls_visa",
+                                "type": "DatasetReference"
+                            },
+                            "name": "sinkvisa"
+                        }
+                    ],
+                    "transformations": [
+                        {
+                            "name": "derivedColumn1"
+                        },
+                        {
+                            "name": "select1"
+                        },
+                        {
+                            "name": "split1"
+                        },
+                        {
+                            "name": "sortmaster"
+                        },
+                        {
+                            "name": "sortvisa"
+                        }
+                    ],
+                    "scriptLines": [
+                        "source(output(",
+                        "          Credit_ID as integer,",
+                        "          Card_Type as string,",
+                        "          Credit_Name as string,",
+                        "          credit_Score as integer",
+                        "     ),",
+                        "     allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     ignoreNoFilesFound: false) ~> source1",
+                        "source1 derive(discount = iif(Card_Type=='Master', '20%', '10%')) ~> derivedColumn1",
+                        "derivedColumn1 select(mapColumn(",
+                        "          Card_Type,",
+                        "          Credit_Name,",
+                        "          credit_Score,",
+                        "          discount",
+                        "     ),",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true) ~> select1",
+                        "select1 split(Card_Type=='Master',",
+                        "     Card_Type=='visa',",
+                        "     disjoint: false) ~> split1@(masterdata, visadata)",
+                        "split1@masterdata sort(desc(credit_Score, true),",
+                        "     partitionBy('hash', 1)) ~> sortmaster",
+                        "split1@visadata sort(desc(credit_Score, true),",
+                        "     partitionBy('hash', 1)) ~> sortvisa",
+                        "sortmaster sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     partitionFileNames:['master_discount.csv'],",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true,",
+                        "     partitionBy('hash', 1)) ~> sinkmaster",
+                        "sortvisa sink(allowSchemaDrift: true,",
+                        "     validateSchema: false,",
+                        "     partitionFileNames:['visa_sink.csv'],",
+                        "     umask: 0022,",
+                        "     preCommands: [],",
+                        "     postCommands: [],",
+                        "     skipDuplicateMapInputs: true,",
+                        "     skipDuplicateMapOutputs: true,",
+                        "     partitionBy('hash', 1)) ~> sinkvisa"
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/datasets/ds_adls_input')]",
+                "[concat(variables('factoryId'), '/datasets/ds_adls_master')]",
+                "[concat(variables('factoryId'), '/datasets/ds_adls_visa')]"
+            ]
+        },
+        {
+            "name": "[concat(parameters('factoryName'), '/trigger1')]",
+            "type": "Microsoft.DataFactory/factories/triggers",
+            "apiVersion": "2018-06-01",
+            "properties": {
+                "annotations": [],
+                "runtimeState": "Started",
+                "pipelines": [
+                    {
+                        "pipelineReference": {
+                            "referenceName": "pipeline1",
+                            "type": "PipelineReference"
+                        },
+                        "parameters": {}
+                    }
+                ],
+                "type": "ScheduleTrigger",
+                "typeProperties": {
+                    "recurrence": {
+                        "frequency": "Week",
+                        "interval": 1,
+                        "startTime": "2025-12-16T05:58:00",
+                        "timeZone": "India Standard Time",
+                        "schedule": {
+                            "minutes": [
+                                30
+                            ],
+                            "hours": [
+                                11
+                            ],
+                            "weekDays": [
+                                "Tuesday"
+                            ]
+                        }
+                    }
+                }
+            },
+            "dependsOn": [
+                "[concat(variables('factoryId'), '/pipelines/pipeline1')]"
+            ]
+        }
+    ]
+}
