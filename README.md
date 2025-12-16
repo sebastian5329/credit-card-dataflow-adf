@@ -2,7 +2,7 @@
 
 *Overview*
 
-This is a beginner-friendly Azure Data Factory project created to understand how Mapping Data Flows work by transforming and routing credit card data in a simple, end-to-end pipeline.
+This is a beginner-friendly Azure Data Factory project created to understand how Mapping Data Flows work by transforming and routing credit card data in a simple pipeline.
 
 *Dataset*
 
@@ -42,4 +42,4 @@ The following steps were implemented using ADF Mapping Data Flows:
 
 *Outcome*
 
-This project gave me a strong starting point with Azure Data Factory Mapping Data Flows, helping me understand how data is transformed, split, sorted, and orchestrated within a pipeline, and how Data Flows work in a practical, end-to-end setup.
+This project gave me a strong starting point with Azure Data Factory Mapping Data Flows, helping me understand how data is transformed, split, sorted, and orchestrated within a pipeline.
